@@ -5,3 +5,11 @@ edition = "2024"
 
 [lib]
 
+[features]
+default = []
+config = ["dep:serde"]
+
+[dependencies]
+thiserror = "2.0.16"
+log = "0.4.29"
+serde = { version = "1.0.228", optional = true }
