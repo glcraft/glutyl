@@ -1,5 +1,2 @@
 pub mod config;
-
-fn main() {
-    println!("Hello, world!");
-}
+pub mod fs;
