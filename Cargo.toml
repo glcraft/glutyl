@@ -7,9 +7,10 @@ edition = "2024"
 
 [features]
 default = []
-config = ["dep:serde"]
+file = ["dep:serde", "dep:toml"]
 
 [dependencies]
 thiserror = "2.0.16"
 log = "0.4.29"
 serde = { version = "1.0.228", optional = true }
+toml = { version = "0.9.10", optional = true }
