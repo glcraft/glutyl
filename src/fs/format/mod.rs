@@ -16,6 +16,8 @@ pub enum Error {
     TomlDeserialize(#[from] toml::de::Error),
     #[error("toml serialize error: {0}")]
     TomlSerialize(#[from] toml::ser::Error),
+    #[error("json serialize/deserialize error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 impl Format {
@@ -30,15 +32,17 @@ impl Format {
         path: P,
         data: Data,
     ) -> Result<(), Error> {
+        use std::io::Write;
         match self {
             Format::Toml => {
-                use std::io::Write;
-
                 let toml_data = toml::to_string_pretty(&data)?;
                 let mut file = std::fs::File::create(path)?;
                 file.write_all(toml_data.as_bytes())?;
             }
-            Format::Json => todo!(),
+            Format::Json => {
+                let file = std::fs::File::create(path)?;
+                serde_json::to_writer(file, &data)?;
+            }
         }
         Ok(())
     }
@@ -48,7 +52,10 @@ impl Format {
                 let content = std::fs::read_to_string(path)?;
                 Ok(toml::from_str(&content)?)
             }
-            Format::Json => todo!(),
+            Format::Json => {
+                let file = std::fs::File::open(path)?;
+                Ok(serde_json::from_reader(file)?)
+            }
         }
     }
 }
