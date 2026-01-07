@@ -1,4 +1,4 @@
 #[cfg(feature = "file")]
-pub mod config;
+pub mod datafile;
 #[cfg(feature = "file")]
 pub mod fs;

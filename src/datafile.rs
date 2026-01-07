@@ -14,7 +14,7 @@ pub enum Error {
     Format(#[from] FormatError),
 }
 
-pub struct Config<Data>
+pub struct DataFile<Data>
 where
     Data: DeserializeOwned,
 {
@@ -37,7 +37,7 @@ pub struct ConfigInit<'a> {
     pub format: Format,
 }
 
-impl<Data> Config<Data>
+impl<Data> DataFile<Data>
 where
     Data: DeserializeOwned,
 {
@@ -92,7 +92,7 @@ where
         &self.data
     }
 }
-impl<Data> Config<Data>
+impl<Data> DataFile<Data>
 where
     Data: DeserializeOwned + Default,
 {
@@ -112,7 +112,7 @@ where
         })
     }
 }
-impl<Data> Config<Data>
+impl<Data> DataFile<Data>
 where
     Data: DeserializeOwned + Serialize,
 {
