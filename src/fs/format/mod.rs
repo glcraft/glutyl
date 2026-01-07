@@ -65,4 +65,18 @@ impl Format {
             }
         }
     }
+    pub fn to_string<Data: Serialize>(self, data: &Data) -> Result<String, Error> {
+        match self {
+            Format::Toml => Ok(toml::to_string(data)?),
+            Format::Json => Ok(serde_json::to_string(data)?),
+            Format::Json5 => Ok(json5::to_string(data)?),
+        }
+    }
+    pub fn from_str<'a, Data: Deserialize<'a>>(self, s: &'a str) -> Result<Data, Error> {
+        match self {
+            Format::Toml => Ok(toml::from_str(s)?),
+            Format::Json => Ok(serde_json::from_str(s)?),
+            Format::Json5 => Ok(json5::from_str(s)?),
+        }
+    }
 }
