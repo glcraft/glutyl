@@ -1,5 +1,6 @@
 use serde::{Serialize, de::DeserializeOwned};
 use std::{
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
@@ -14,29 +15,30 @@ pub enum Error {
     Format(#[from] FormatError),
 }
 
-pub struct DataFile<Data> {
+pub struct DataFile<Data, Formatter: Format> {
     path: PathBuf,
-    format: Format,
     data: Data,
+    phantom: PhantomData<Formatter>,
 }
 
-impl<Data> DataFile<Data>
+impl<Data, Formatter> DataFile<Data, Formatter>
 where
     Data: DeserializeOwned,
+    Formatter: Format,
 {
-    pub fn read<'a>(path: PathBuf, format: Format) -> Result<Self, Error> {
-        let data = format.read_file(&path)?;
+    pub fn read<'a>(path: PathBuf) -> Result<Self, Error> {
+        let data = Formatter::read_file(&path)?;
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
             path,
-            format: format,
             data,
+            phantom: PhantomData,
         })
     }
-    pub fn read_or<'a>(path: PathBuf, format: Format, data: Data) -> Result<Self, Error> {
+    pub fn read_or<'a>(path: PathBuf, data: Data) -> Result<Self, Error> {
         let data = if path.exists() {
-            format.read_file(&path)?
+            Formatter::read_file(&path)?
         } else {
             data
         };
@@ -44,17 +46,13 @@ where
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
             path,
-            format: format,
             data,
+            phantom: PhantomData,
         })
     }
-    pub fn read_or_else<'a>(
-        path: PathBuf,
-        format: Format,
-        data: impl FnOnce() -> Data,
-    ) -> Result<Self, Error> {
+    pub fn read_or_else<'a>(path: PathBuf, data: impl FnOnce() -> Data) -> Result<Self, Error> {
         let data = if path.exists() {
-            format.read_file(&path)?
+            Formatter::read_file(&path)?
         } else {
             data()
         };
@@ -62,21 +60,22 @@ where
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
             path,
-            format: format,
             data,
+            phantom: PhantomData,
         })
     }
     pub fn get_data(&self) -> &Data {
         &self.data
     }
 }
-impl<Data> DataFile<Data>
+impl<Data, Formatter> DataFile<Data, Formatter>
 where
     Data: DeserializeOwned + Default,
+    Formatter: Format,
 {
-    pub fn read_or_default<'a>(path: PathBuf, format: Format) -> Result<Self, Error> {
+    pub fn read_or_default<'a>(path: PathBuf) -> Result<Self, Error> {
         let data = if path.exists() {
-            format.read_file(&path)?
+            Formatter::read_file(&path)?
         } else {
             Default::default()
         };
@@ -84,12 +83,15 @@ where
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
             path,
-            format: format,
             data,
+            phantom: PhantomData,
         })
     }
 }
-impl<Data> DataFile<Data> {
+impl<Data, Formatter> DataFile<Data, Formatter>
+where
+    Formatter: Format,
+{
     // fn path<'a>(init: &ConfigInit<'a>) -> Result<PathBuf, Error> {
     //     log::info!("Configuration file for {init:?}");
     //     let res = match &name {
@@ -111,43 +113,46 @@ impl<Data> DataFile<Data> {
     //     }
     //     Ok(res)
     // }
-    pub fn new<'a>(path: PathBuf, format: Format, data: Data) -> Result<Self, Error> {
+    pub fn new<'a>(path: PathBuf, data: Data) -> Result<Self, Error> {
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
             path,
-            format: format,
             data,
+            phantom: PhantomData,
         })
     }
 }
-impl<Data> DataFile<Data>
+impl<Data, Formatter> DataFile<Data, Formatter>
 where
     Data: DeserializeOwned + Serialize,
+    Formatter: Format,
 {
-    pub fn get_mut_data<'a>(&'a mut self) -> MutData<'a, Data> {
+    pub fn get_mut_data<'a>(&'a mut self) -> MutData<'a, Data, Formatter> {
         MutData {
             path: self.path.as_path(),
-            format: self.format,
             data: &mut self.data,
+            phantom: PhantomData,
         }
     }
 }
-pub struct MutData<'a, Data>
+pub struct MutData<'a, Data, Formatter>
 where
     Data: Serialize,
+    Formatter: Format,
 {
     path: &'a Path,
-    format: Format,
     data: &'a mut Data,
+    phantom: PhantomData<Formatter>,
 }
 
-impl<'a, Data> Drop for MutData<'a, Data>
+impl<'a, Data, Formatter> Drop for MutData<'a, Data, Formatter>
 where
     Data: Serialize,
+    Formatter: Format,
 {
     fn drop(&mut self) {
-        if let Err(e) = self.format.write_file(self.path, &self.data) {
+        if let Err(e) = Formatter::write_file(&self.path, &self.data) {
             log::error!(
                 "unable to write on file {}: {}",
                 self.path.to_string_lossy(),
@@ -158,9 +163,10 @@ where
     }
 }
 
-impl<'a, Data> Deref for MutData<'a, Data>
+impl<'a, Data, Formatter> Deref for MutData<'a, Data, Formatter>
 where
     Data: Serialize,
+    Formatter: Format,
 {
     type Target = Data;
 
@@ -169,9 +175,10 @@ where
     }
 }
 
-impl<'a, Data> DerefMut for MutData<'a, Data>
+impl<'a, Data, Formatter> DerefMut for MutData<'a, Data, Formatter>
 where
     Data: Serialize,
+    Formatter: Format,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
