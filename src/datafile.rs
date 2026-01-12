@@ -14,10 +14,7 @@ pub enum Error {
     Format(#[from] FormatError),
 }
 
-pub struct DataFile<Data>
-where
-    Data: DeserializeOwned,
-{
+pub struct DataFile<Data> {
     path: PathBuf,
     format: Format,
     data: Data,
@@ -67,6 +64,49 @@ where
             data,
         })
     }
+    pub fn read_or_else<'a>(
+        init: ConfigInit<'a>,
+        data: impl FnOnce() -> Data,
+    ) -> Result<Self, Error> {
+        let config_path = Self::config_path(&init)?;
+        let data = if config_path.exists() {
+            init.format.read_file(&config_path)?
+        } else {
+            data()
+        };
+        log::info!("Configuration file loaded successfully");
+        // log::debug!("Configuration file content: {data:?}");
+        Ok(Self {
+            path: config_path,
+            format: init.format,
+            data,
+        })
+    }
+    pub fn get_data(&self) -> &Data {
+        &self.data
+    }
+}
+impl<Data> DataFile<Data>
+where
+    Data: DeserializeOwned + Default,
+{
+    pub fn read_or_default<'a>(init: ConfigInit<'a>) -> Result<Self, Error> {
+        let config_path = Self::config_path(&init)?;
+        let data = if config_path.exists() {
+            init.format.read_file(&config_path)?
+        } else {
+            Default::default()
+        };
+        log::info!("Configuration file loaded successfully");
+        // log::debug!("Configuration file content: {data:?}");
+        Ok(Self {
+            path: config_path,
+            format: init.format,
+            data,
+        })
+    }
+}
+impl<Data> DataFile<Data> {
     fn config_path<'a>(init: &ConfigInit<'a>) -> Result<PathBuf, Error> {
         log::info!("Configuration file for {init:?}");
         let res = match &init.name {
@@ -88,21 +128,8 @@ where
         }
         Ok(res)
     }
-    pub fn get_data(&self) -> &Data {
-        &self.data
-    }
-}
-impl<Data> DataFile<Data>
-where
-    Data: DeserializeOwned + Default,
-{
-    pub fn read_or_default<'a>(init: ConfigInit<'a>) -> Result<Self, Error> {
+    pub fn new<'a>(init: ConfigInit<'a>, data: Data) -> Result<Self, Error> {
         let config_path = Self::config_path(&init)?;
-        let data = if config_path.exists() {
-            init.format.read_file(&config_path)?
-        } else {
-            Default::default()
-        };
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
