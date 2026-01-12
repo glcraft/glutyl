@@ -7,8 +7,7 @@ edition = "2024"
 
 [features]
 default = []
-file = ["dep:serde", "dep:toml"]
-json5 = ["dep:json5"]
+file = ["dep:serde", "dep:toml", "dep:serde_json", "dep:json5"]
 
 [dependencies]
 thiserror = "2.0.16"
