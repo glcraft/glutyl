@@ -20,65 +20,49 @@ pub struct DataFile<Data> {
     data: Data,
 }
 
-#[derive(Debug)]
-pub enum ConfigName<'a> {
-    CustomPath(PathBuf),
-    Named {
-        app: Option<&'a str>,
-        filename: &'a str,
-    },
-}
-#[derive(Debug)]
-pub struct ConfigInit<'a> {
-    pub name: ConfigName<'a>,
-    pub format: Format,
-}
-
 impl<Data> DataFile<Data>
 where
     Data: DeserializeOwned,
 {
-    pub fn read<'a>(init: ConfigInit<'a>) -> Result<Self, Error> {
-        let config_path = Self::config_path(&init)?;
-        let data = init.format.read_file(&config_path)?;
+    pub fn read<'a>(path: PathBuf, format: Format) -> Result<Self, Error> {
+        let data = format.read_file(&path)?;
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
-            path: config_path,
-            format: init.format,
+            path,
+            format: format,
             data,
         })
     }
-    pub fn read_or<'a>(init: ConfigInit<'a>, data: Data) -> Result<Self, Error> {
-        let config_path = Self::config_path(&init)?;
-        let data = if config_path.exists() {
-            init.format.read_file(&config_path)?
+    pub fn read_or<'a>(path: PathBuf, format: Format, data: Data) -> Result<Self, Error> {
+        let data = if path.exists() {
+            format.read_file(&path)?
         } else {
             data
         };
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
-            path: config_path,
-            format: init.format,
+            path,
+            format: format,
             data,
         })
     }
     pub fn read_or_else<'a>(
-        init: ConfigInit<'a>,
+        path: PathBuf,
+        format: Format,
         data: impl FnOnce() -> Data,
     ) -> Result<Self, Error> {
-        let config_path = Self::config_path(&init)?;
-        let data = if config_path.exists() {
-            init.format.read_file(&config_path)?
+        let data = if path.exists() {
+            format.read_file(&path)?
         } else {
             data()
         };
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
-            path: config_path,
-            format: init.format,
+            path,
+            format: format,
             data,
         })
     }
@@ -90,51 +74,49 @@ impl<Data> DataFile<Data>
 where
     Data: DeserializeOwned + Default,
 {
-    pub fn read_or_default<'a>(init: ConfigInit<'a>) -> Result<Self, Error> {
-        let config_path = Self::config_path(&init)?;
-        let data = if config_path.exists() {
-            init.format.read_file(&config_path)?
+    pub fn read_or_default<'a>(path: PathBuf, format: Format) -> Result<Self, Error> {
+        let data = if path.exists() {
+            format.read_file(&path)?
         } else {
             Default::default()
         };
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
-            path: config_path,
-            format: init.format,
+            path,
+            format: format,
             data,
         })
     }
 }
 impl<Data> DataFile<Data> {
-    fn config_path<'a>(init: &ConfigInit<'a>) -> Result<PathBuf, Error> {
-        log::info!("Configuration file for {init:?}");
-        let res = match &init.name {
-            ConfigName::CustomPath(path) => path.clone(),
-            ConfigName::Named {
-                app: None,
-                filename,
-            } => crate::fs::StandardPaths::config_path()?.join(filename),
-            ConfigName::Named {
-                app: Some(app),
-                filename,
-            } => crate::fs::StandardPaths::config_with_name(app)?.join(filename),
-        };
-        if log::log_enabled!(log::Level::Info) {
-            log::info!(
-                "Configuration file location: {}",
-                res.as_os_str().to_string_lossy()
-            );
-        }
-        Ok(res)
-    }
-    pub fn new<'a>(init: ConfigInit<'a>, data: Data) -> Result<Self, Error> {
-        let config_path = Self::config_path(&init)?;
+    // fn path<'a>(init: &ConfigInit<'a>) -> Result<PathBuf, Error> {
+    //     log::info!("Configuration file for {init:?}");
+    //     let res = match &name {
+    //         ConfigName::CustomPath(path) => path.clone(),
+    //         ConfigName::Named {
+    //             app: None,
+    //             filename,
+    //         } => crate::fs::StandardPaths::path()?.join(filename),
+    //         ConfigName::Named {
+    //             app: Some(app),
+    //             filename,
+    //         } => crate::fs::StandardPaths::config_with_name(app)?.join(filename),
+    //     };
+    //     if log::log_enabled!(log::Level::Info) {
+    //         log::info!(
+    //             "Configuration file location: {}",
+    //             res.as_os_str().to_string_lossy()
+    //         );
+    //     }
+    //     Ok(res)
+    // }
+    pub fn new<'a>(path: PathBuf, format: Format, data: Data) -> Result<Self, Error> {
         log::info!("Configuration file loaded successfully");
         // log::debug!("Configuration file content: {data:?}");
         Ok(Self {
-            path: config_path,
-            format: init.format,
+            path,
+            format: format,
             data,
         })
     }
